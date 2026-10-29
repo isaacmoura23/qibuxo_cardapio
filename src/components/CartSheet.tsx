@@ -4,6 +4,16 @@ import { useCart } from "../cart";
 import { useData } from "../data/context";
 import { useDetail } from "../detail";
 import { money, prettyDate } from "../format";
+import {
+  buildMesaBody,
+  loadMesaMenu,
+  MesaError,
+  mesaTrackingUrl,
+  sendMesaOrder,
+  toMesaItems,
+  type MesaItem,
+  type MesaMenu,
+} from "../mesa";
 import { minDate } from "../store";
 import { buildMessage, whatsappUrl, type OrderForm } from "../whatsapp";
 
@@ -13,13 +23,18 @@ interface Props {
 }
 
 const CUSTOMER = "qibuxo-customer-v1";
-type Saved = Pick<OrderForm, "name" | "phone" | "address" | "reference" | "payment">;
+type Saved = Pick<OrderForm, "name" | "phone" | "address" | "number" | "neighborhood" | "reference" | "payment">;
+
+/** Cidade padrão do endereço: a loja é em Ocara, CE. */
+const CITY = "Ocara";
 
 const emptyForm: OrderForm = {
   name: "",
   phone: "",
   mode: "retirada",
   address: "",
+  number: "",
+  neighborhood: "",
   reference: "",
   payment: "",
   change: "",
@@ -38,6 +53,8 @@ function loadForm(): OrderForm {
       name: text(s.name, 80),
       phone: text(s.phone, 30),
       address: text(s.address, 240),
+      number: text(s.number, 20),
+      neighborhood: text(s.neighborhood, 120),
       reference: text(s.reference, 120),
       payment: text(s.payment, 24),
     };
@@ -46,18 +63,24 @@ function loadForm(): OrderForm {
   }
 }
 
-type Errors = Partial<Record<"name" | "address" | "payment" | "date" | "items" | "server", string>>;
+type Errors = Partial<Record<"name" | "phone" | "address" | "number" | "neighborhood" | "payment" | "date" | "items" | "server", string>>;
+
+/** Pedido enviado ao Mesa Fácil (acompanhamento) ou aberto no WhatsApp (bolos confeitados). */
+type Done = { kind: "mesa"; url: string; number: string } | { kind: "whatsapp"; url: string; number: string | null };
 
 export function CartSheet({ open, onClose }: Props) {
   const { lines, total: subtotal, count, setQty, setNote, remove, clear } = useCart();
-  const { settings, leadDaysOf } = useData();
+  const { settings, leadDaysOf, index } = useData();
   const detail = useDetail();
   const ref = useRef<HTMLDialogElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const [form, setForm] = useState<OrderForm>(loadForm);
   const [errors, setErrors] = useState<Errors>({});
-  const [done, setDone] = useState<{ url: string; number: string | null } | null>(null);
+  const [done, setDone] = useState<Done | null>(null);
   const [sending, setSending] = useState(false);
+  const [menu, setMenu] = useState<MesaMenu | null>(null);
+  /** Mesmo ID em novas tentativas do mesmo pedido: se a resposta se perder, o servidor não duplica. */
+  const idemKey = useRef<string | null>(null);
   const uid = useId();
 
   const modes = useMemo(
@@ -75,7 +98,10 @@ export function CartSheet({ open, onClose }: Props) {
       titleRef.current?.focus();
     }
     if (!open && d.open) d.close();
-    if (open) setDone(null);
+    if (open) {
+      setDone(null);
+      loadMesaMenu().then(setMenu);
+    }
   }, [open]);
 
   const fee = mode === "entrega" ? settings.deliveryFee : 0;
@@ -83,6 +109,15 @@ export function CartSheet({ open, onClose }: Props) {
   const lead = useMemo(() => lines.reduce((n, l) => Math.max(n, leadDaysOf(l.product.id)), 0), [lines, leadDaysOf]);
   const earliest = minDate(lead);
   const unavailable = lines.filter((l) => !l.available);
+
+  /** Bolos confeitados são combinados pelo WhatsApp: se há algum no carrinho, o pedido inteiro segue por lá. */
+  const hasCake = lines.some((l) => index.categoryOf.get(l.product.id)?.id === "confeitados");
+  const mesaItems = useMemo<MesaItem[] | null>(() => {
+    if (!menu || hasCake || lines.length === 0) return null;
+    return toMesaItems(lines, menu);
+  }, [menu, hasCake, lines]);
+  const zoneId = menu?.settings.deliveryZones[0]?.id ?? null;
+  const viaMesa = mesaItems !== null && (mode === "retirada" || zoneId !== null);
 
   const patch = (p: Partial<OrderForm>) => {
     setForm((f) => ({ ...f, ...p }));
@@ -94,16 +129,55 @@ export function CartSheet({ open, onClose }: Props) {
     });
   };
 
+  /** Envia o pedido ao Mesa Fácil. Erro de regra mostra a mensagem; sem resposta, dá para tentar de novo. */
+  const sendViaMesa = async (items: MesaItem[]) => {
+    idemKey.current ??= crypto.randomUUID();
+    setSending(true);
+    try {
+      const body = buildMesaBody(
+        {
+          mode,
+          name: form.name,
+          phone: form.phone,
+          street: form.address,
+          number: form.number,
+          neighborhood: form.neighborhood,
+          city: CITY,
+          reference: form.reference,
+          payment,
+          change: form.change,
+          date: form.date,
+          notes: form.notes,
+          items,
+          zoneId,
+        },
+        idemKey.current,
+      );
+      const created = await sendMesaOrder(body);
+      idemKey.current = null;
+      setDone({ kind: "mesa", url: mesaTrackingUrl(created.publicCode), number: created.orderNumber });
+    } catch (e) {
+      // Resposta de regra (4xx): a tentativa foi recusada, então a próxima usa outra chave.
+      if (e instanceof MesaError && e.status !== null && e.status >= 400 && e.status < 500) idemKey.current = null;
+      setErrors({ server: e instanceof Error ? e.message : "Não foi possível enviar o pedido." });
+    } finally {
+      setSending(false);
+    }
+  };
+
   const send = async () => {
     if (sending) return;
     const err: Errors = {};
     if (unavailable.length > 0) err.items = "Remova os itens esgotados para enviar o pedido.";
     if (!form.name.trim()) err.name = "Informe seu nome para enviar o pedido.";
-    if (mode === "entrega" && !form.address.trim()) err.address = "Informe o endereço de entrega.";
+    if (mode === "entrega" && !form.address.trim()) err.address = "Informe a rua.";
+    if (mode === "entrega" && !form.number.trim()) err.number = "Informe o número da casa.";
+    if (mode === "entrega" && !form.neighborhood.trim()) err.neighborhood = "Informe o bairro.";
+    if (viaMesa && form.phone.replace(/\D/g, "").length < 10) err.phone = "Informe seu WhatsApp com DDD para acompanhar o pedido.";
     if (!payment) err.payment = "Escolha a forma de pagamento.";
     if (form.date && form.date < earliest) err.date = `Para estes itens, escolha a partir de ${prettyDate(earliest)}.`;
     setErrors(err);
-    const first = (["items", "name", "address", "payment", "date"] as const).find((k) => err[k]);
+    const first = (["items", "name", "phone", "address", "number", "neighborhood", "payment", "date"] as const).find((k) => err[k]);
     if (first) {
       const el = document.getElementById(`${uid}-${first}`);
       el?.focus();
@@ -111,10 +185,23 @@ export function CartSheet({ open, onClose }: Props) {
       return;
     }
     try {
-      const s: Saved = { name: form.name, phone: form.phone, address: form.address, reference: form.reference, payment };
+      const s: Saved = {
+        name: form.name,
+        phone: form.phone,
+        address: form.address,
+        number: form.number,
+        neighborhood: form.neighborhood,
+        reference: form.reference,
+        payment,
+      };
       localStorage.setItem(CUSTOMER, JSON.stringify(s));
     } catch {
       /* sem armazenamento: tudo bem */
+    }
+
+    if (viaMesa && mesaItems) {
+      await sendViaMesa(mesaItems);
+      return;
     }
 
     const data: OrderForm = { ...form, mode, payment };
@@ -159,7 +246,7 @@ export function CartSheet({ open, onClose }: Props) {
     }
     const url = whatsappUrl(buildMessage(lines, { subtotal, fee, total }, data, number ?? undefined), settings.whatsapp);
     window.open(url, "_blank", "noopener,noreferrer");
-    setDone({ url, number });
+    setDone({ kind: "whatsapp", url, number });
     setSending(false);
   };
 
@@ -193,12 +280,22 @@ export function CartSheet({ open, onClose }: Props) {
         {done ? (
           <div className="sheet__done" role="status">
             <CheckCircle2 size={56} strokeWidth={1.6} aria-hidden="true" />
-            <p className="sheet__emptytitle">O WhatsApp abriu com o seu pedido</p>
-            {done.number && <p className="order-number">Pedido {done.number}</p>}
-            <p>É só tocar em enviar. A loja confirma a taxa de entrega e o valor dos extras por lá.</p>
+            {done.kind === "mesa" ? (
+              <>
+                <p className="sheet__emptytitle">Pedido enviado</p>
+                <p className="order-number">Pedido {done.number}</p>
+                <p>A loja vai confirmar o seu pedido. Acompanhe cada etapa pelo link abaixo.</p>
+              </>
+            ) : (
+              <>
+                <p className="sheet__emptytitle">O WhatsApp abriu com o seu pedido</p>
+                {done.number && <p className="order-number">Pedido {done.number}</p>}
+                <p>É só tocar em enviar. A loja confirma a taxa de entrega e o valor dos extras por lá.</p>
+              </>
+            )}
             <a className="btn btn--wa" href={done.url} target="_blank" rel="noopener noreferrer">
               <MessageCircle size={20} aria-hidden="true" />
-              Abrir o WhatsApp de novo
+              {done.kind === "mesa" ? "Acompanhar pedido" : "Abrir o WhatsApp de novo"}
             </a>
             <button
               type="button"
@@ -327,19 +424,26 @@ export function CartSheet({ open, onClose }: Props) {
 
                 <div className="form__row">
                   <label htmlFor={`${uid}-phone`} className="form__label">
-                    Seu WhatsApp <span className="form__opt">(opcional)</span>
+                    Seu WhatsApp{" "}
+                    <span className="form__opt">{viaMesa ? "(obrigatório, para acompanhar o pedido)" : "(opcional)"}</span>
                   </label>
                   <input
                     id={`${uid}-phone`}
-                    className="field"
+                    className={`field${errors.phone ? " is-error" : ""}`}
                     type="tel"
                     inputMode="tel"
                     autoComplete="tel"
                     maxLength={30}
                     placeholder="(85) 99999-9999"
+                    aria-invalid={!!errors.phone}
                     value={form.phone}
                     onChange={(e) => patch({ phone: e.target.value })}
                   />
+                  {errors.phone && (
+                    <p className="form__error" role="alert">
+                      {errors.phone}
+                    </p>
+                  )}
                 </div>
 
                 {modes.length > 1 && (
@@ -365,13 +469,13 @@ export function CartSheet({ open, onClose }: Props) {
                       <label htmlFor={`${uid}-address`} className="form__label">
                         Endereço de entrega <span className="form__opt">(obrigatório)</span>
                       </label>
-                      <textarea
+                      <input
                         id={`${uid}-address`}
                         className={`field${errors.address ? " is-error" : ""}`}
-                        rows={2}
-                        maxLength={240}
-                        autoComplete="street-address"
-                        placeholder="Rua, número e bairro"
+                        type="text"
+                        maxLength={160}
+                        autoComplete="address-line1"
+                        placeholder="Rua"
                         aria-required="true"
                         aria-invalid={!!errors.address}
                         aria-describedby={errors.address ? `${uid}-address-err` : undefined}
@@ -381,6 +485,46 @@ export function CartSheet({ open, onClose }: Props) {
                       {errors.address && (
                         <p id={`${uid}-address-err`} className="form__error" role="alert">
                           {errors.address}
+                        </p>
+                      )}
+                    </div>
+                    <div className="form__row">
+                      <label htmlFor={`${uid}-number`} className="form__label">
+                        Número <span className="form__opt">(obrigatório)</span>
+                      </label>
+                      <input
+                        id={`${uid}-number`}
+                        className={`field${errors.number ? " is-error" : ""}`}
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={20}
+                        aria-invalid={!!errors.number}
+                        value={form.number}
+                        onChange={(e) => patch({ number: e.target.value })}
+                      />
+                      {errors.number && (
+                        <p className="form__error" role="alert">
+                          {errors.number}
+                        </p>
+                      )}
+                    </div>
+                    <div className="form__row">
+                      <label htmlFor={`${uid}-neighborhood`} className="form__label">
+                        Bairro <span className="form__opt">(obrigatório)</span>
+                      </label>
+                      <input
+                        id={`${uid}-neighborhood`}
+                        className={`field${errors.neighborhood ? " is-error" : ""}`}
+                        type="text"
+                        maxLength={120}
+                        autoComplete="address-level3"
+                        aria-invalid={!!errors.neighborhood}
+                        value={form.neighborhood}
+                        onChange={(e) => patch({ neighborhood: e.target.value })}
+                      />
+                      {errors.neighborhood && (
+                        <p className="form__error" role="alert">
+                          {errors.neighborhood}
                         </p>
                       )}
                     </div>
@@ -510,9 +654,15 @@ export function CartSheet({ open, onClose }: Props) {
               )}
               <button type="button" className="btn btn--wa" onClick={send} disabled={sending} aria-busy={sending}>
                 {sending ? <Loader2 size={20} className="spin" aria-hidden="true" /> : <MessageCircle size={20} aria-hidden="true" />}
-                {sending ? "Enviando…" : "Enviar pedido pelo WhatsApp"}
+                {sending ? "Enviando…" : viaMesa ? "Enviar pedido" : "Enviar pelo WhatsApp"}
               </button>
-              <p className="sheet__fine">O botão registra o pedido e abre o WhatsApp com ele escrito. É só tocar em enviar.</p>
+              <p className="sheet__fine">
+                {viaMesa
+                  ? "O pedido vai direto para a loja, que confirma pelo painel de acompanhamento."
+                  : hasCake
+                    ? "Bolos confeitados são combinados pelo WhatsApp. Este pedido segue por lá."
+                    : "Este pedido segue pelo WhatsApp, para a loja confirmar os itens."}
+              </p>
             </footer>
           </>
         )}

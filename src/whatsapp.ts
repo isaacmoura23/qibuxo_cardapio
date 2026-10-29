@@ -8,6 +8,8 @@ export interface OrderForm {
   phone: string;
   mode: "retirada" | "entrega";
   address: string;
+  number: string;
+  neighborhood: string;
   reference: string;
   payment: Payment;
   change: string;
@@ -28,7 +30,8 @@ export function buildMessage(lines: ResolvedLine[], t: Totals, f: OrderForm, ord
   if (f.phone.trim()) out.push(`Telefone: ${f.phone.trim()}`);
   out.push(`Receber por: ${f.mode === "entrega" ? "Entrega" : "Retirada"}`);
   if (f.mode === "entrega") {
-    out.push(`Endereço: ${f.address.trim()}`);
+    const where = [f.address.trim(), f.number.trim(), f.neighborhood.trim()].filter(Boolean).join(", ");
+    out.push(`Endereço: ${where}`);
     if (f.reference.trim()) out.push(`Referência: ${f.reference.trim()}`);
   }
   if (f.date) out.push(`Para o dia: ${prettyDate(f.date)}`);
