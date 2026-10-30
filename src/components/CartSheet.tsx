@@ -11,6 +11,7 @@ import {
   mesaTrackingUrl,
   sendMesaOrder,
   toMesaItems,
+  mesaMismatchReason,
   isValidBrPhone,
   type MesaItem,
   type MesaMenu,
@@ -118,6 +119,14 @@ export function CartSheet({ open, onClose }: Props) {
   }, [menu, lines]);
   const zoneId = menu?.settings.deliveryZones[0]?.id ?? null;
   const viaMesa = mesaItems !== null && (mode === "retirada" || zoneId !== null);
+  /** Quando o pedido não vai direto ao Mesa Fácil, diz por quê (e não só cai no WhatsApp em silêncio). */
+  const whyNotMesa = viaMesa
+    ? null
+    : !menu
+      ? "não foi possível consultar o Mesa Fácil agora (sem resposta)"
+      : lines.length === 0
+        ? null
+        : (mesaMismatchReason(lines, menu) ?? (mode === "entrega" && zoneId === null ? "o Mesa Fácil não tem região de entrega cadastrada" : null));
 
   const patch = (p: Partial<OrderForm>) => {
     setForm((f) => ({ ...f, ...p }));
@@ -130,7 +139,7 @@ export function CartSheet({ open, onClose }: Props) {
   };
 
   /** Envia o pedido ao Mesa Fácil. Erro de regra mostra a mensagem; sem resposta, dá para tentar de novo. */
-  const sendViaMesa = async (items: MesaItem[]) => {
+  const sendViaMesa = async (items: MesaItem[], zone: string | null = zoneId) => {
     idemKey.current ??= crypto.randomUUID();
     setSending(true);
     try {
@@ -149,7 +158,7 @@ export function CartSheet({ open, onClose }: Props) {
           date: form.date,
           notes: form.notes,
           items,
-          zoneId,
+          zoneId: zone,
         },
         idemKey.current,
       );
@@ -203,6 +212,22 @@ export function CartSheet({ open, onClose }: Props) {
       await sendViaMesa(mesaItems);
       return;
     }
+    // O menu pode não ter carregado (rede lenta ao abrir o carrinho): tenta mais uma vez antes de ir ao WhatsApp.
+    if (!menu) {
+      setSending(true);
+      const fresh = await loadMesaMenu();
+      setSending(false);
+      if (fresh) {
+        setMenu(fresh);
+        const items = lines.length > 0 ? toMesaItems(lines, fresh) : null;
+        const zone = fresh.settings.deliveryZones[0]?.id ?? null;
+        if (items && (mode === "retirada" || zone !== null)) {
+          await sendViaMesa(items, zone);
+          return;
+        }
+      }
+    }
+    if (whyNotMesa) console.warn("Pedido seguindo pelo WhatsApp:", whyNotMesa);
 
     const data: OrderForm = { ...form, mode, payment };
     setSending(true);
@@ -659,7 +684,7 @@ export function CartSheet({ open, onClose }: Props) {
               <p className="sheet__fine">
                 {viaMesa
                   ? "O pedido vai direto para a loja, que confirma pelo painel de acompanhamento."
-                  : "Não conseguimos enviar direto agora. O pedido segue pelo WhatsApp, para a loja confirmar os itens."}
+                  : `Não conseguimos enviar direto agora${whyNotMesa ? ` (${whyNotMesa})` : ""}. O pedido segue pelo WhatsApp, para a loja confirmar os itens.`}
               </p>
             </footer>
           </>

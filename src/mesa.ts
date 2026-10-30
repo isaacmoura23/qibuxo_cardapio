@@ -97,49 +97,6 @@ export function loadMesaMenu(): Promise<MesaMenu | null> {
   return menuCache;
 }
 
-/** Converte uma linha do carrinho para o item da API. Null se algo não casar com o Mesa Fácil. */
-export function toMesaItem(l: ResolvedLine, menu: MesaMenu): MesaItem | null {
-  const products = menu.categories
-    .flatMap((c) => c.products)
-    .filter((p) => norm(p.name) === norm(l.product.name));
-  if (products.length !== 1) return null;
-  const product = products[0];
-  if (!product.isAvailable) return null;
-
-  let variantId: string | undefined;
-  if (product.variants.length > 0) {
-    const label = norm(l.option.label);
-    const withDetail = l.option.detail ? norm(`${l.option.label} (${l.option.detail})`) : null;
-    const variant = product.variants.find((v) => {
-      const name = norm(v.name);
-      return name === label || (withDetail !== null && name === withDetail);
-    });
-    if (!variant || !variant.isAvailable || variant.priceCents !== Math.round(l.option.price * 100)) return null;
-    variantId = variant.id;
-  } else {
-    if (l.product.options.length !== 1) return null;
-    if (product.priceCents !== Math.round(l.option.price * 100)) return null;
-  }
-
-  const modifierIds: string[] = [];
-  for (const e of l.extras) {
-    const group = product.modifierGroups.find((g) => groupBase(g.name) === norm(e.group.title));
-    if (!group) return null;
-    const mod = group.modifiers.find((m) => norm(m.name) === norm(e.choice.label));
-    if (!mod || !mod.isAvailable) return null;
-    if (mod.priceDeltaCents !== Math.round((e.choice.price ?? 0) * 100)) return null;
-    modifierIds.push(mod.id);
-  }
-
-  return {
-    productId: product.id,
-    variantId,
-    quantity: l.line.qty,
-    modifierIds,
-    notes: itemNotes(l),
-  };
-}
-
 /** Limite de observação por item na API do Mesa Fácil. */
 const MAX_ITEM_NOTES = 500;
 
@@ -150,6 +107,69 @@ function itemNotes(l: ResolvedLine): string | undefined {
   const note = l.line.note.trim();
   if (note) parts.push(note);
   return parts.length > 0 ? parts.join(" | ").slice(0, MAX_ITEM_NOTES) : undefined;
+}
+
+/** Resultado de casar uma linha do carrinho com o menu do Mesa Fácil: o item da API ou o motivo de não casar. */
+type MatchResult = { item: MesaItem } | { reason: string };
+
+function matchMesaItem(l: ResolvedLine, menu: MesaMenu): MatchResult {
+  const name = l.product.name;
+  const products = menu.categories.flatMap((c) => c.products).filter((p) => norm(p.name) === norm(name));
+  if (products.length === 0) return { reason: `"${name}" não existe no Mesa Fácil` };
+  if (products.length > 1) return { reason: `"${name}" está repetido no Mesa Fácil` };
+  const product = products[0];
+  if (!product.isAvailable) return { reason: `"${name}" está indisponível no Mesa Fácil` };
+
+  let variantId: string | undefined;
+  if (product.variants.length > 0) {
+    const label = norm(l.option.label);
+    const withDetail = l.option.detail ? norm(`${l.option.label} (${l.option.detail})`) : null;
+    const variant = product.variants.find((v) => {
+      const n = norm(v.name);
+      return n === label || (withDetail !== null && n === withDetail);
+    });
+    if (!variant) return { reason: `tamanho "${l.option.label}" de "${name}" não existe no Mesa Fácil` };
+    if (!variant.isAvailable) return { reason: `tamanho "${l.option.label}" de "${name}" está indisponível no Mesa Fácil` };
+    if (variant.priceCents !== Math.round(l.option.price * 100)) {
+      return { reason: `preço de "${name}" (${l.option.label}) difere: catálogo ${l.option.price}, Mesa Fácil ${variant.priceCents / 100}` };
+    }
+    variantId = variant.id;
+  } else {
+    if (l.product.options.length !== 1) return { reason: `"${name}" tem tamanhos no catálogo, mas não no Mesa Fácil` };
+    if (product.priceCents !== Math.round(l.option.price * 100)) {
+      return { reason: `preço de "${name}" difere: catálogo ${l.option.price}, Mesa Fácil ${product.priceCents / 100}` };
+    }
+  }
+
+  const modifierIds: string[] = [];
+  for (const e of l.extras) {
+    const group = product.modifierGroups.find((g) => groupBase(g.name) === norm(e.group.title));
+    if (!group) return { reason: `grupo "${e.group.title}" de "${name}" não existe no Mesa Fácil` };
+    const mod = group.modifiers.find((m) => norm(m.name) === norm(e.choice.label));
+    if (!mod) return { reason: `"${e.choice.label}" (${e.group.title}) de "${name}" não existe no Mesa Fácil` };
+    if (!mod.isAvailable) return { reason: `"${e.choice.label}" de "${name}" está indisponível no Mesa Fácil` };
+    if (mod.priceDeltaCents !== Math.round((e.choice.price ?? 0) * 100)) {
+      return { reason: `preço do extra "${e.choice.label}" de "${name}" difere entre catálogo e Mesa Fácil` };
+    }
+    modifierIds.push(mod.id);
+  }
+
+  return { item: { productId: product.id, variantId, quantity: l.line.qty, modifierIds, notes: itemNotes(l) } };
+}
+
+/** Converte uma linha do carrinho para o item da API. Null se algo não casar com o Mesa Fácil. */
+export function toMesaItem(l: ResolvedLine, menu: MesaMenu): MesaItem | null {
+  const m = matchMesaItem(l, menu);
+  return "item" in m ? m.item : null;
+}
+
+/** Por que o carrinho não casa com o Mesa Fácil (null se casa). Aparece na tela para o motivo não ficar escondido. */
+export function mesaMismatchReason(lines: ResolvedLine[], menu: MesaMenu): string | null {
+  for (const l of lines) {
+    const m = matchMesaItem(l, menu);
+    if ("reason" in m) return m.reason;
+  }
+  return null;
 }
 
 /** Todos os itens casam? Se sim, devolve a lista pronta para a API. */
