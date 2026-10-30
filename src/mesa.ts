@@ -136,8 +136,20 @@ export function toMesaItem(l: ResolvedLine, menu: MesaMenu): MesaItem | null {
     variantId,
     quantity: l.line.qty,
     modifierIds,
-    notes: l.line.note.trim() || undefined,
+    notes: itemNotes(l),
   };
+}
+
+/** Limite de observação por item na API do Mesa Fácil. */
+const MAX_ITEM_NOTES = 500;
+
+/** Itens inclusos do kit (a cozinha não vê a lista do catálogo) + a observação do cliente. */
+function itemNotes(l: ResolvedLine): string | undefined {
+  const parts: string[] = [];
+  if (l.product.includes && l.product.includes.length > 0) parts.push(`Inclui: ${l.product.includes.join(", ")}`);
+  const note = l.line.note.trim();
+  if (note) parts.push(note);
+  return parts.length > 0 ? parts.join(" | ").slice(0, MAX_ITEM_NOTES) : undefined;
 }
 
 /** Todos os itens casam? Se sim, devolve a lista pronta para a API. */
