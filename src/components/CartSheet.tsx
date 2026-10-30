@@ -11,6 +11,7 @@ import {
   mesaTrackingUrl,
   sendMesaOrder,
   toMesaItems,
+  isValidBrPhone,
   type MesaItem,
   type MesaMenu,
 } from "../mesa";
@@ -168,11 +169,11 @@ export function CartSheet({ open, onClose }: Props) {
     if (sending) return;
     const err: Errors = {};
     if (unavailable.length > 0) err.items = "Remova os itens esgotados para enviar o pedido.";
-    if (!form.name.trim()) err.name = "Informe seu nome para enviar o pedido.";
+    if (form.name.trim().length < 2) err.name = "Informe seu nome para enviar o pedido.";
     if (mode === "entrega" && !form.address.trim()) err.address = "Informe a rua.";
     if (mode === "entrega" && !form.number.trim()) err.number = "Informe o número da casa.";
     if (mode === "entrega" && !form.neighborhood.trim()) err.neighborhood = "Informe o bairro.";
-    if (viaMesa && form.phone.replace(/\D/g, "").length < 10) err.phone = "Informe seu WhatsApp com DDD para acompanhar o pedido.";
+    if (viaMesa && !isValidBrPhone(form.phone)) err.phone = "Informe seu WhatsApp com DDD, ex.: (85) 99999-9999 (sem o +55).";
     if (!payment) err.payment = "Escolha a forma de pagamento.";
     if (form.date && form.date < earliest) err.date = `Para estes itens, escolha a partir de ${prettyDate(earliest)}.`;
     setErrors(err);

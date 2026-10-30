@@ -267,11 +267,13 @@ export async function sendMesaOrder(body: MesaOrderBody): Promise<MesaCreated> {
   }
   const json = (await r.json().catch(() => ({}))) as {
     data?: { publicCode?: string; orderNumber?: string };
-    error?: { message?: string };
+    error?: { message?: string; details?: { path?: string; message?: string }[] };
     message?: string;
   };
   if (!r.ok) {
-    throw new MesaError(json.error?.message ?? json.message ?? "Não foi possível enviar o pedido.", r.status);
+    // Em "Requisição inválida", o motivo (ex.: telefone) vem em details, já em português.
+    const why = json.error?.details?.find((d) => d.message)?.message;
+    throw new MesaError(why ?? json.error?.message ?? json.message ?? "Não foi possível enviar o pedido.", r.status);
   }
   const { publicCode, orderNumber } = json.data ?? {};
   if (!publicCode) throw new MesaError("Resposta inesperada do servidor.", r.status);
@@ -280,3 +282,13 @@ export async function sendMesaOrder(body: MesaOrderBody): Promise<MesaCreated> {
 
 /** Link do painel de acompanhamento do Mesa Fácil. */
 export const mesaTrackingUrl = (publicCode: string) => `${MESA.baseUrl}/r/${MESA.slug}/pedido/${publicCode}`;
+
+/** Telefone brasileiro como o Mesa Fácil exige: DDD + 9 dígitos (celular, começa com 9) ou 8 (fixo, começa com 2 a 5). */
+export function isValidBrPhone(raw: string): boolean {
+  const d = raw.replace(/\D/g, "");
+  if (d.length !== 10 && d.length !== 11) return false;
+  const ddd = Number(d.slice(0, 2));
+  if (ddd < 11 || ddd > 99) return false;
+  if (d.length === 11) return d[2] === "9";
+  return /[2-5]/.test(d[2]);
+}
