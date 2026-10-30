@@ -13,10 +13,10 @@ Catálogo mobile-first da confeitaria Qi Buxo (Vite + React + TypeScript). O cli
 - Variável na Vercel: `BLOB_READ_WRITE_TOKEN`. (`ADMIN_PASSWORD` e `SESSION_SECRET` não são mais usadas.)
 - Segurança: pedidos recalculados no servidor (o cliente não altera preços), limite de pedidos por IP, armazenamento privado.
 
-## Pendências por causa da remoção do painel
+## Pendências
 
-- **Horário, "fechar a loja agora", taxa de entrega, formas de pagamento e aviso no topo** ficam congelados no último estado salvo. O próximo passo é ler esses dados do Mesa Fácil (que já tem horários, regiões de entrega e "aceita pedidos").
 - Fotos, textos e kits só mudam por código (`src/data/seed.ts` + atualização do Blob).
+- **Aviso fixo do topo:** hoje vem da descrição de uma *exceção de horário de hoje* cadastrada no Mesa Fácil (ex.: "Hoje fechamos às 15h"). Um campo próprio de "aviso da vitrine" no Mesa Fácil ainda não existe; quando existir (`restaurant.notice` na API), o catálogo já o usa com prioridade.
 - Pedidos antigos que já estavam no Blob (`orders/*`) continuam lá e não aparecem em nenhum painel; podem ser apagados.
 
 ## Rodar localmente
@@ -39,11 +39,23 @@ vercel deploy --prod --yes   # publica
 - Bolo de 4 andares: não está claro se os itens "já inclusos" dos de 3 andares valem para ele.
 - WhatsApp: (85) 9408-4103 foi guardado como 5585994084103 (com o 9 na frente).
 
-## Preços e disponibilidade vêm do Mesa Fácil
+## Dados que vêm do Mesa Fácil
 
-Com o Mesa Fácil ligado (`src/mesa.ts`), o preço de cada produto, tamanho e adicional, e o "esgotado", vêm do menu do Mesa Fácil (`api/_lib/mesa-prices.ts`). Edite preços **no Mesa Fácil**; o catálogo mostra e cobra o mesmo valor, e o servidor recalcula o pedido com ele.
+Com o Mesa Fácil ligado (`src/mesa.ts`, `api/_lib/mesa-sync.ts`), estes dados vêm do menu público dele e **são editados lá**; o catálogo mostra o mesmo valor e o servidor recalcula o pedido com ele:
 
-- O casamento é por **nome** (produto, tamanho e adicional). O que não casar mantém o valor do catálogo; os nomes aparecem no log da função (`mesa-prices: sem correspondência`).
+| No catálogo | Vem do Mesa Fácil |
+|---|---|
+| Preço de produto, tamanho e adicional; "esgotado" | Cardápio |
+| Horário de funcionamento | Horários (por dia; com mais de um intervalo no dia vale do primeiro ao último) |
+| "Fechar a loja agora" | Pedidos pausados |
+| Folgas | Exceções de horário marcadas como "fechado" |
+| Taxa de entrega, entrega e retirada | Região de entrega (a primeira) e modalidades |
+| WhatsApp e endereço | Contato |
+| Aviso do topo | Descrição da exceção de horário de hoje (ver Pendências) |
+
+- Mudanças aparecem em até cerca de 1 minuto (cache do Mesa Fácil + do catálogo).
+- Produtos, tamanhos e adicionais são casados por **nome**. O que não casar mantém o valor do catálogo; os nomes aparecem no log da função (`mesa-sync: sem correspondência`).
+- Exceções de horário com horário próprio (não "fechado") não são representadas no catálogo.
 - Fotos, textos, kits, ordem e prazos de encomenda continuam sendo do catálogo.
-- Para voltar a usar os preços do próprio catálogo, defina `MESA_PRICES=off` na Vercel.
 - Se o Mesa Fácil não responder (3 s), o catálogo usa os valores que já tem e o pedido segue pelo WhatsApp.
+- Para voltar a usar só os dados do catálogo, defina `MESA_SYNC=off` na Vercel.

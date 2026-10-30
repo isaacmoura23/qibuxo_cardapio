@@ -46,7 +46,15 @@ interface MesaProduct {
 }
 
 export interface MesaMenu {
-  settings: { deliveryZones: { id: string; name: string }[] };
+  /** Dados da loja (só o que o catálogo usa). Campos ausentes ou inválidos são ignorados. */
+  restaurant?: { contact?: { whatsapp?: string | null; addressText?: string | null } | null; notice?: string | null };
+  settings: {
+    deliveryZones: { id: string; name: string; feeCents?: number }[];
+    acceptsOrders?: boolean;
+    fulfillmentTypes?: string[];
+    businessHours?: { weekday: number; opensAt: string; closesAt: string }[];
+    businessHourExceptions?: { date: string; isClosed: boolean; opensAt?: string | null; closesAt?: string | null; description?: string | null }[];
+  };
   categories: { products: MesaProduct[] }[];
 }
 
