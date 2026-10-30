@@ -42,8 +42,4 @@ export async function getCatalog(fresh = false): Promise<CatalogData> {
   return data;
 }
 
-export const dropCatalogCache = () => {
-  cache = null;
-};
-
 export { del, get, list, put };

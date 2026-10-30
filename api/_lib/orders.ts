@@ -1,8 +1,7 @@
 import { randomBytes } from "node:crypto";
-import type { CatalogData, Order, OrderItem, OrderStatus } from "../../src/types.js";
+import type { CatalogData, Order, OrderItem } from "../../src/types.js";
 import { buildIndex, isAvailable, resolvePicks, unitPrice, visibleGroups, picksKey } from "../../src/data/model.js";
 import { STORE_TZ } from "../../src/config.js";
-import { del, get, list, readJson, writeJson } from "./blob.js";
 
 export class OrderError extends Error {
   constructor(
@@ -116,51 +115,3 @@ export function buildOrder(input: OrderInput, catalog: CatalogData): Order {
     total: money(subtotal + fee),
   };
 }
-
-const PREFIX = "orders/";
-const FAR = 9_999_999_999_999;
-
-/** Prefixo invertido: ordem alfabética = mais novo primeiro. */
-export const orderKey = (o: Order) => `${PREFIX}${String(FAR - Date.parse(o.createdAt)).padStart(13, "0")}-${o.id}.json`;
-export const isOrderKey = (k: unknown): k is string => typeof k === "string" && /^orders\/\d{13}-[0-9a-f]{8}\.json$/.test(k);
-
-export async function saveOrder(o: Order): Promise<string> {
-  const key = orderKey(o);
-  await writeJson(key, o);
-  return key;
-}
-
-export type StoredOrder = Order & { key: string };
-
-export async function listOrders(limit = 60): Promise<StoredOrder[]> {
-  const page = await list({ prefix: PREFIX, limit });
-  const rows = await Promise.all(
-    page.blobs.map(async (b) => {
-      const r = await readJson<Order>(b.pathname);
-      return r ? ({ ...r.data, key: b.pathname } as StoredOrder) : null;
-    }),
-  );
-  return rows.filter((r): r is StoredOrder => r !== null);
-}
-
-/** Barato: só o nome do mais novo e quantos há (até 100). Usado para saber se chegou pedido novo. */
-export async function peekOrders(): Promise<{ newest: string | null; count: number }> {
-  const page = await list({ prefix: PREFIX, limit: 100 });
-  return { newest: page.blobs[0]?.pathname ?? null, count: page.blobs.length };
-}
-
-export async function updateOrder(key: string, patch: { status?: OrderStatus; internalNote?: string }): Promise<Order> {
-  const cur = await readJson<Order>(key);
-  if (!cur) throw new OrderError("Pedido não encontrado.", 404);
-  const next: Order = { ...cur.data, updatedAt: new Date().toISOString() };
-  if (patch.status) next.status = patch.status;
-  if (typeof patch.internalNote === "string") next.internalNote = patch.internalNote.slice(0, 500);
-  await writeJson(key, next, cur.etag);
-  return next;
-}
-
-export async function deleteOrder(key: string): Promise<void> {
-  await del(key);
-}
-
-export { get };
