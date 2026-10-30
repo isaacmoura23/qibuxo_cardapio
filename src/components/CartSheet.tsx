@@ -319,7 +319,7 @@ export function CartSheet({ open, onClose }: Props) {
               </>
             )}
             <a className="btn btn--wa" href={done.url} target="_blank" rel="noopener noreferrer">
-              <MessageCircle size={20} aria-hidden="true" />
+              {done.kind !== "mesa" && <MessageCircle size={20} aria-hidden="true" />}
               {done.kind === "mesa" ? "Acompanhar pedido" : "Abrir o WhatsApp de novo"}
             </a>
             <button
@@ -678,7 +678,7 @@ export function CartSheet({ open, onClose }: Props) {
                 </p>
               )}
               <button type="button" className="btn btn--wa" onClick={send} disabled={sending} aria-busy={sending}>
-                {sending ? <Loader2 size={20} className="spin" aria-hidden="true" /> : <MessageCircle size={20} aria-hidden="true" />}
+                {sending && <Loader2 size={20} className="spin" aria-hidden="true" />}
                 {sending ? "Enviando…" : "Enviar pedido"}
               </button>
               <p className="sheet__fine">
