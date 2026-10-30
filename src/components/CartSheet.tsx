@@ -70,7 +70,7 @@ type Done = { kind: "mesa"; url: string; number: string } | { kind: "whatsapp"; 
 
 export function CartSheet({ open, onClose }: Props) {
   const { lines, total: subtotal, count, setQty, setNote, remove, clear } = useCart();
-  const { settings, leadDaysOf, index } = useData();
+  const { settings, leadDaysOf } = useData();
   const detail = useDetail();
   const ref = useRef<HTMLDialogElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
@@ -110,12 +110,11 @@ export function CartSheet({ open, onClose }: Props) {
   const earliest = minDate(lead);
   const unavailable = lines.filter((l) => !l.available);
 
-  /** Bolos confeitados são combinados pelo WhatsApp: se há algum no carrinho, o pedido inteiro segue por lá. */
-  const hasCake = lines.some((l) => index.categoryOf.get(l.product.id)?.id === "confeitados");
+  /** Todos os pedidos (inclusive bolos confeitados) vão ao Mesa Fácil; só caem no WhatsApp se algum item não casar com o menu de lá. */
   const mesaItems = useMemo<MesaItem[] | null>(() => {
-    if (!menu || hasCake || lines.length === 0) return null;
+    if (!menu || lines.length === 0) return null;
     return toMesaItems(lines, menu);
-  }, [menu, hasCake, lines]);
+  }, [menu, lines]);
   const zoneId = menu?.settings.deliveryZones[0]?.id ?? null;
   const viaMesa = mesaItems !== null && (mode === "retirada" || zoneId !== null);
 
@@ -654,14 +653,12 @@ export function CartSheet({ open, onClose }: Props) {
               )}
               <button type="button" className="btn btn--wa" onClick={send} disabled={sending} aria-busy={sending}>
                 {sending ? <Loader2 size={20} className="spin" aria-hidden="true" /> : <MessageCircle size={20} aria-hidden="true" />}
-                {sending ? "Enviando…" : viaMesa ? "Enviar pedido" : "Enviar pelo WhatsApp"}
+                {sending ? "Enviando…" : "Enviar pedido"}
               </button>
               <p className="sheet__fine">
                 {viaMesa
                   ? "O pedido vai direto para a loja, que confirma pelo painel de acompanhamento."
-                  : hasCake
-                    ? "Bolos confeitados são combinados pelo WhatsApp. Este pedido segue por lá."
-                    : "Este pedido segue pelo WhatsApp, para a loja confirmar os itens."}
+                  : "Não conseguimos enviar direto agora. O pedido segue pelo WhatsApp, para a loja confirmar os itens."}
               </p>
             </footer>
           </>
