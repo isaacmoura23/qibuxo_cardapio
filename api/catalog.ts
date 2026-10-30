@@ -1,11 +1,12 @@
 import { getCatalog } from "./_lib/blob.js";
+import { withMesaPrices } from "./_lib/mesa-prices.js";
 import type { Req, Res } from "./_lib/http.js";
 
 /** Catálogo público (somente leitura). */
 export default async function handler(req: Req, res: Res) {
   if (req.method !== "GET") return res.status(405).json({ error: "Método não permitido" });
   try {
-    const data = await getCatalog(true);
+    const data = await withMesaPrices(await getCatalog(true));
     // Navegador sempre revalida; só a rede da Vercel guarda por 10 s (as mudanças do painel aparecem rápido).
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Vercel-CDN-Cache-Control", "max-age=10");
