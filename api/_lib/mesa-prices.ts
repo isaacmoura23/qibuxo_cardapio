@@ -45,6 +45,14 @@ async function fetchMenu(): Promise<MesaMenu | null> {
   return menu;
 }
 
+/** Centavos válidos (número finito e não negativo) em reais; qualquer outra coisa vira null e o valor do catálogo fica. */
+const reais = (cents: unknown): number | null =>
+  typeof cents === "number" && Number.isFinite(cents) && cents >= 0 ? cents / 100 : null;
+
+/** Diferença de preço de um adicional: número finito (pode ser negativa); inválido vira null. */
+const deltaReais = (cents: unknown): number | null =>
+  typeof cents === "number" && Number.isFinite(cents) ? cents / 100 : null;
+
 export interface MesaPriceReport {
   matched: number;
   unmatched: string[];
@@ -73,9 +81,11 @@ export function applyMesaPrices(catalog: CatalogData, menu: MesaMenu): { catalog
             const label = norm(o.label);
             const withDetail = o.detail ? norm(`${o.label} (${o.detail})`) : null;
             const v = m.variants.find((x) => norm(x.name) === label || (withDetail !== null && norm(x.name) === withDetail));
-            if (v) o.price = v.priceCents / 100;
+            const price = v ? reais(v.priceCents) : null;
+            if (price !== null) o.price = price;
           } else if (p.options.length === 1) {
-            o.price = m.priceCents / 100;
+            const price = reais(m.priceCents);
+            if (price !== null) o.price = price;
           }
         }
 
@@ -84,7 +94,8 @@ export function applyMesaPrices(catalog: CatalogData, menu: MesaMenu): { catalog
           if (!mg) continue;
           for (const c of g.choices) {
             const mod = mg.modifiers.find((x) => norm(x.name) === norm(c.label));
-            if (mod && (c.price !== undefined || mod.priceDeltaCents !== 0)) c.price = mod.priceDeltaCents / 100;
+            const delta = mod ? deltaReais(mod.priceDeltaCents) : null;
+            if (mod && delta !== null && (c.price !== undefined || delta !== 0)) c.price = delta;
           }
         }
       }
