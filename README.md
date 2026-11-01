@@ -58,3 +58,12 @@ Colocados a pedido, só para funcionar. Troque pelos reais em **Loja** e **Catá
 - Aviso de pedido novo (som e título da aba) só funciona com o painel aberto. Com o painel fechado, o aviso é o próprio WhatsApp.
 - Um único usuário (o dono).
 - Os dados ficam em arquivos JSON no Blob, o que serve bem para uma loja pequena; se o volume crescer muito, vale migrar para um banco SQL.
+
+## Preços e disponibilidade vêm do Mesa Fácil
+
+Com o Mesa Fácil ligado (`src/mesa.ts`), o preço de cada produto, tamanho e adicional, e o "esgotado", vêm do menu do Mesa Fácil (`api/_lib/mesa-prices.ts`). Edite preços **no Mesa Fácil**; o catálogo mostra e cobra o mesmo valor, e o servidor recalcula o pedido com ele.
+
+- O casamento é por **nome** (produto, tamanho e adicional). O que não casar mantém o valor do catálogo; os nomes aparecem no log da função (`mesa-prices: sem correspondência`).
+- Fotos, textos, kits, ordem e prazos de encomenda continuam sendo do catálogo (painel `/admin`).
+- Alterar **preço** no painel `/admin` de um item que existe no Mesa Fácil não tem efeito. Para voltar ao comportamento antigo, defina `MESA_PRICES=off` na Vercel.
+- Se o Mesa Fácil não responder (3 s), o catálogo usa os valores que já tem e o pedido segue pelo WhatsApp.

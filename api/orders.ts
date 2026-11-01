@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { getCatalog, readJson, writeJson } from "./_lib/blob.js";
+import { withMesaPrices } from "./_lib/mesa-prices.js";
 import { body, clientIp, send, type Req, type Res } from "./_lib/http.js";
 import { OrderError, buildOrder, saveOrder, type OrderInput } from "./_lib/orders.js";
 
@@ -24,7 +25,7 @@ export default async function handler(req: Req, res: Res) {
     const input = body<OrderInput & { website?: string }>(req);
     if (input.website) return send(res, 200, { ok: true, number: "QB-OK", id: "x", total: 0 }); // isca para robôs
     if (!(await allowed(clientIp(req)))) return send(res, 429, { error: "Muitos pedidos em pouco tempo. Tente de novo em alguns minutos." });
-    const catalog = await getCatalog();
+    const catalog = await withMesaPrices(await getCatalog());
     const order = buildOrder(input, catalog);
     await saveOrder(order);
     return send(res, 201, { ok: true, number: order.number, id: order.id, total: order.total, fee: order.fee });
