@@ -1,0 +1,128 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-12T00:00:00Z",
+  "title": "Design System: Qi Buxo Catálogo",
+  "extensions": {
+    "colorMeta": {
+      "cacau": { "role": "primary", "displayName": "Cacau Chocolate", "canonical": "#47301c", "tonalRamp": ["#1d130b", "#2a190b", "#47301c", "#5e3f25", "#7a5634", "#a98660", "#d8c0a4", "#f1e4d4"] },
+      "morango": { "role": "secondary", "displayName": "Morango Strawberry", "canonical": "#b5302a", "tonalRamp": ["#3d0f0d", "#5f1815", "#8f221e", "#b5302a", "#d0554d", "#e0847d", "#eebab5", "#f8e2df"] },
+      "creme": { "role": "neutral", "displayName": "Creme", "canonical": "#fbefe4", "tonalRamp": ["#47301c", "#6a4b33", "#a98660", "#d8c0a4", "#ead7c1", "#f6e6d6", "#fbefe4", "#fff8f1"] },
+      "paper": { "role": "neutral", "displayName": "Paper", "canonical": "#fff8f1", "tonalRamp": ["#47301c", "#6a4b33", "#a98660", "#d8c0a4", "#ead7c1", "#f6e6d6", "#fbefe4", "#fff8f1"] },
+      "leite": { "role": "neutral", "displayName": "Leite", "canonical": "#f6e6d6", "tonalRamp": ["#47301c", "#6a4b33", "#a98660", "#d8c0a4", "#ead7c1", "#f6e6d6", "#fbefe4", "#fff8f1"] },
+      "bege": { "role": "neutral", "displayName": "Bege", "canonical": "#ead7c1", "tonalRamp": ["#47301c", "#6a4b33", "#a98660", "#d8c0a4", "#ead7c1", "#f6e6d6", "#fbefe4", "#fff8f1"] },
+      "linha": { "role": "neutral", "displayName": "Linha", "canonical": "#d8c0a4", "tonalRamp": ["#47301c", "#6a4b33", "#a98660", "#d8c0a4", "#ead7c1", "#f6e6d6", "#fbefe4", "#fff8f1"] },
+      "ink": { "role": "neutral", "displayName": "Tinta", "canonical": "#3a2413", "tonalRamp": ["#1d130b", "#3a2413", "#47301c", "#6a4b33", "#a98660", "#d8c0a4", "#ead7c1", "#fbefe4"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Intro title, outlined with a dark brown stroke." },
+      "headline": { "displayName": "Headline", "purpose": "Category titles, outlined with bege." },
+      "title": { "displayName": "Title", "purpose": "Product names in Nunito 800." },
+      "body": { "displayName": "Body", "purpose": "Descriptions and blurbs." },
+      "label": { "displayName": "Label", "purpose": "Option labels, chip details, units." },
+      "price": { "displayName": "Price", "purpose": "Every price and total, Londrina, tabular." }
+    },
+    "shadows": [
+      { "name": "card-rest", "value": "0 1px 0 rgb(71 48 28 / 0.05), 0 14px 28px -20px rgb(71 48 28 / 0.45)", "purpose": "Product and ladder cards." },
+      { "name": "kit-rest", "value": "0 18px 30px -22px rgb(40 24 10 / 0.7)", "purpose": "Chocolate kit blocks." },
+      { "name": "order-bar", "value": "0 16px 32px -10px rgb(40 24 10 / 0.6)", "purpose": "Floating order bar." }
+    ],
+    "motion": [
+      { "name": "ease", "value": "cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Press, rise-in, sheet slide; only under prefers-reduced-motion: no-preference for entrances." },
+      { "name": "press", "value": "transform 0.18s var(--ease)", "purpose": "Scale .96-.98 on active for pills and chips." }
+    ],
+    "breakpoints": [
+      { "name": "tablet", "value": "720px" },
+      { "name": "desktop", "value": "1040px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Add Pill",
+      "kind": "button",
+      "refersTo": "button-add",
+      "description": "Red pill that adds the selected size to the order.",
+      "html": "<button class=\"ds-add\"><span class=\"ds-add-icon\">+</span><span>Adicionar</span></button>",
+      "css": ".ds-add{display:inline-flex;align-items:center;gap:8px;min-height:46px;padding:0 18px 0 12px;border:0;border-radius:999px;background:#b5302a;color:#fbefe4;font:800 1rem 'Nunito Variable',system-ui,sans-serif;cursor:pointer;transition:transform .18s cubic-bezier(.16,1,.3,1),background .25s}.ds-add-icon{display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:rgb(255 255 255/.18)}.ds-add:hover{background:#8f221e}.ds-add:active{transform:scale(.96)}.ds-add:focus-visible{outline:3px solid #b5302a;outline-offset:2px}"
+    },
+    {
+      "name": "Category Tab",
+      "kind": "chip",
+      "refersTo": "tab",
+      "description": "Outlined pill in the sticky category strip; selected is solid chocolate.",
+      "html": "<button class=\"ds-tab\">Bolos</button><button class=\"ds-tab ds-tab-on\">Kits</button>",
+      "css": ".ds-tab{min-height:44px;padding:0 16px;border:1.5px solid #d8c0a4;border-radius:999px;background:transparent;color:#47301c;font:800 1rem 'Nunito Variable',system-ui,sans-serif;cursor:pointer;margin-right:8px;transition:background .2s,color .2s}.ds-tab:hover{background:#f6e6d6}.ds-tab-on{background:#47301c;border-color:#47301c;color:#fbefe4}.ds-tab:focus-visible{outline:3px solid #b5302a;outline-offset:2px}"
+    },
+    {
+      "name": "Size Chip",
+      "kind": "chip",
+      "refersTo": "chip-size",
+      "description": "Size option that carries its own price.",
+      "html": "<button class=\"ds-chip\"><span class=\"ds-chip-l\">Médio</span><span class=\"ds-chip-d\">12 fatias</span><span class=\"ds-chip-p\">R$ 85,00</span></button>",
+      "css": ".ds-chip{display:flex;flex-direction:column;align-items:flex-start;min-height:62px;padding:8px 12px;border:1.5px solid #d8c0a4;border-radius:14px;background:#fbefe4;color:#3a2413;text-align:left;font-family:'Nunito Variable',system-ui,sans-serif;cursor:pointer;transition:background .18s,border-color .18s}.ds-chip:hover{border-color:#7a5634}.ds-chip-l{font-weight:800}.ds-chip-d{font-size:.8rem;color:#6a4b33}.ds-chip-p{margin-top:auto;font-weight:800;font-size:.92rem;font-variant-numeric:tabular-nums}.ds-chip:focus-visible{outline:3px solid #b5302a;outline-offset:2px}"
+    },
+    {
+      "name": "Product Card",
+      "kind": "card",
+      "refersTo": "card-product",
+      "description": "Paper card with photo, name, price in Londrina and add pill.",
+      "html": "<article class=\"ds-card\"><h3 class=\"ds-card-name\">Bolo Xodó</h3><div class=\"ds-card-buy\"><span class=\"ds-price\">R$ 85,00</span><button class=\"ds-add\">Adicionar</button></div></article>",
+      "css": ".ds-card{padding:12px;border:1px solid #d8c0a4;border-radius:20px;background:#fff8f1;box-shadow:0 1px 0 rgb(71 48 28/.05),0 14px 28px -20px rgb(71 48 28/.45);font-family:'Nunito Variable',system-ui,sans-serif}.ds-card-name{margin:0 0 12px;font-size:1.12rem;font-weight:800;line-height:1.2;color:#47301c}.ds-card-buy{display:flex;justify-content:space-between;align-items:center}.ds-price{font-family:'Londrina Solid','Arial Narrow',sans-serif;font-weight:900;font-size:2rem;line-height:1;color:#b5302a;font-variant-numeric:tabular-nums}.ds-card .ds-add{min-height:46px;padding:0 18px;border:0;border-radius:999px;background:#b5302a;color:#fbefe4;font-weight:800;font-family:inherit}"
+    },
+    {
+      "name": "Kit Block",
+      "kind": "card",
+      "refersTo": "card-kit",
+      "description": "Solid chocolate block with heart-bulleted contents and creme price.",
+      "html": "<article class=\"ds-kit\"><h3 class=\"ds-kit-name\">Kit Festa</h3><p class=\"ds-kit-line\">&#9829; 50 brigadeiros</p><div class=\"ds-kit-buy\"><span class=\"ds-kit-price\">R$ 120,00</span><button class=\"ds-kit-add\">Adicionar</button></div></article>",
+      "css": ".ds-kit{display:flex;flex-direction:column;gap:14px;padding:20px;border-radius:24px;background:#47301c;color:#fbefe4;box-shadow:0 18px 30px -22px rgb(40 24 10/.7);font-family:'Nunito Variable',system-ui,sans-serif}.ds-kit-name{margin:0;font-family:'Londrina Solid','Arial Narrow',sans-serif;font-weight:900;font-size:2.1rem;line-height:.95;text-transform:uppercase}.ds-kit-line{margin:0;font-weight:700}.ds-kit-buy{display:flex;justify-content:space-between;align-items:center}.ds-kit-price{font-family:'Londrina Solid','Arial Narrow',sans-serif;font-weight:900;font-size:2.4rem;line-height:1}.ds-kit-add{min-height:46px;padding:0 18px;border:0;border-radius:999px;background:#fbefe4;color:#47301c;font:800 1rem inherit;cursor:pointer}.ds-kit-add:hover{background:#ead7c1}.ds-kit-add:focus-visible{outline:3px solid #fbefe4;outline-offset:2px}"
+    },
+    {
+      "name": "Notice Box",
+      "kind": "custom",
+      "refersTo": "notice",
+      "description": "Dashed information panel with heart pills, mirroring the flyers.",
+      "html": "<aside class=\"ds-notice\"><p class=\"ds-notice-t\">Informações</p><ul class=\"ds-notice-i\"><li>&#9829; Encomendas pelo WhatsApp</li></ul></aside>",
+      "css": ".ds-notice{padding:16px 18px;border:2px dashed #7a5634;border-radius:18px;background:#f6e6d6;font-family:'Nunito Variable',system-ui,sans-serif}.ds-notice-t{margin:0;font-weight:800;color:#47301c}.ds-notice-i{list-style:none;margin:12px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:8px}.ds-notice-i li{padding:6px 12px;border-radius:999px;background:#fbefe4;border:1px solid #d8c0a4;font-weight:700;font-size:.9rem;color:#47301c}"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "Paper field with linha border and red focus ring.",
+      "html": "<input class=\"ds-field\" placeholder=\"Seu nome\">",
+      "css": ".ds-field{width:100%;min-height:48px;padding:10px 14px;border:1.5px solid #d8c0a4;border-radius:14px;background:#fff8f1;color:#3a2413;caret-color:#b5302a;font:1rem 'Nunito Variable',system-ui,sans-serif}.ds-field::placeholder{color:#6a4b33;opacity:.8}.ds-field:focus-visible{outline:3px solid #b5302a;outline-offset:1px;border-color:#b5302a}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Flyer Turned Order Screen",
+    "overview": "The catalogue is the shop's own flyer set made operable. The world is pinned by the client's artwork: chocolate-brown fields against warm cream, hand-cut heavy lettering with a pale outline, a heart as the only ornament, and the dashed information panel of the flyers.",
+    "keyCharacteristics": [
+      "Brown and cream carry structure; strawberry red is rationed to prices, the add action, counts, hearts, errors and focus.",
+      "Londrina Solid caps for titles, prices and totals; Nunito for everything read.",
+      "Pill controls, softly rounded cards, 44px minimum touch targets.",
+      "Flat, warm-tinted depth: diffuse brown shadows, no hard offsets.",
+      "Heart is the only ornament."
+    ],
+    "rules": [
+      { "name": "The Strawberry Reserve Rule", "body": "Red marks money and the commit action. If an element is neither a price, an add/send control, a count, a heart or an error, it is brown or cream.", "section": "colors" },
+      { "name": "The Warm Neutrals Rule", "body": "Every neutral is a brown or cream tint; shadows are tinted with the brown, never neutral gray.", "section": "colors" },
+      { "name": "The Outlined Lettering Rule", "body": "Large Londrina on a field carries a thick stroke in the field's neighbour tone with paint-order stroke. Small Londrina (prices, group titles) stays unstroked.", "section": "typography" },
+      { "name": "The Numerals Rule", "body": "Every figure is tabular-nums; every price is Londrina.", "section": "typography" },
+      { "name": "The Tinted Shadow Rule", "body": "Shadows are diffuse with negative spread and brown; no hard offsets, no glows.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep prices in Londrina, tabular, morango on cream (#b5302a) and creme on chocolate.",
+      "Do make brown fields (cacau #47301c) and cream ground the structural split; use paper (#fff8f1) for raised cards.",
+      "Do show every size with its own price on the card; selection state is solid cacau.",
+      "Do keep touch targets at 44px or larger and use the 3px morango focus ring (creme on brown surfaces).",
+      "Do wrap motion in prefers-reduced-motion: no-preference.",
+      "Do use the heart as the single ornament."
+    ],
+    "donts": [
+      "Don't use morango for decoration, headings or large fills outside the add/send controls.",
+      "Don't introduce serif display type, pastel palettes, cool grays, pure black or pure white.",
+      "Don't use hard offset shadows, gradient text or glass effects; depth is tonal plus the tinted shadows above.",
+      "Don't add ornaments other than the heart, or invent shop facts (delivery, hours, testimonials); content comes from the flyers."
+    ]
+  }
+}
