@@ -16,7 +16,7 @@ Catálogo mobile-first da confeitaria Qi Buxo (Vite + React + TypeScript). O cli
 ## Pendências
 
 - Fotos, textos e kits só mudam por código (`src/data/seed.ts` + atualização do Blob).
-- **Aviso fixo do topo:** hoje vem da descrição de uma *exceção de horário de hoje* cadastrada no Mesa Fácil (ex.: "Hoje fechamos às 15h"). Um campo próprio de "aviso da vitrine" no Mesa Fácil ainda não existe; quando existir (`restaurant.notice` na API), o catálogo já o usa com prioridade.
+- **Aviso fixo do topo:** vem do campo "aviso da vitrine" do Mesa Fácil (tela Restaurante do dono; `restaurant.notice` na API). Se ele estiver vazio, o catálogo usa a descrição da *exceção de horário de hoje* (ex.: "Hoje fechamos às 15h").
 - Pedidos antigos que já estavam no Blob (`orders/*`) continuam lá e não aparecem em nenhum painel; podem ser apagados.
 
 ## Rodar localmente
@@ -51,7 +51,7 @@ Com o Mesa Fácil ligado (`src/mesa.ts`, `api/_lib/mesa-sync.ts`), estes dados v
 | Folgas | Exceções de horário marcadas como "fechado" |
 | Taxa de entrega, entrega e retirada | Região de entrega (a primeira) e modalidades |
 | WhatsApp e endereço | Contato |
-| Aviso do topo | Descrição da exceção de horário de hoje (ver Pendências) |
+| Aviso do topo | Campo "aviso da vitrine" (tela Restaurante); se vazio, descrição da exceção de horário de hoje |
 
 - Mudanças aparecem em até cerca de 1 minuto (cache do Mesa Fácil + do catálogo).
 - Produtos, tamanhos e adicionais são casados por **nome**. O que não casar mantém o valor do catálogo; os nomes aparecem no log da função (`mesa-sync: sem correspondência`).
